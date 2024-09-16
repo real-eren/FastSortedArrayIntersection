@@ -265,7 +265,7 @@ enum Mode {
 };
 
 char *algo_names[] = {"branchy      ", "branchless   ", "b-less unroll",
-                      "dual-wield   ", "tri-wield    ", "conflict     "};
+                      "dual-wield   ", "tri-wield    "};
 int main(int argc, char *argv[]) {
     size_t num_algos = sizeof(algo_names) / sizeof(char *);
     if (argc != 2) {

@@ -8,15 +8,14 @@ improve instruction-level parallelism.
 Similar techniques can be used for `union` and similar operations.
 
 ## Build Instructions
-`clang -mavx512f -mavx512bw -mavx512vl -mavx512cd -O3 main.c`  
-`gcc -mavx512f -mavx512bw -mavx512vl -mavx512cd -O3 main.c`  
-
-## CPU compatibility
-### x86-64
-Only the 'conflict' algorithms use AVX512, so `0`-`4` should work on any x86-64 processor.
-### Other
-Sorry, I haven't added the necessary preprocessor directives to conditionally define the AVX512 functions.
-Your best bet is to modify the file by deleting those functions and removing the avx512 build flags.
+### Non-AVX512
+Only includes scalar implementations  
+`clang -O3 main.c`  
+`gcc -O3 main.c`  
+### AVX512
+Includes scalar and AVX512 implementations  
+`clang -mavx512f -mavx512bw -mavx512vl -mavx512cd -O3 main_avx512.c`  
+`gcc -mavx512f -mavx512bw -mavx512vl -mavx512cd -O3 main_avx512.c`  
 
 ## Profiling 
 Most of the execution time is actually spent just preparing the input,

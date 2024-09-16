@@ -398,3 +398,238 @@ conflict3    	0.401100	26925.953125
 csum:1894314
 ```
 </details>
+
+<details>
+  <summary>i7 9750h branchy</summary>
+
+```
+algorithm 	avg time (ms)	avg thrpt (MB/s)
+same range, more left: [0,1500]*900, [0,1500]*500, 10000 iters
+branchy      	0.005355	1045.751587
+csum:3000327
+
+same range, fewer left: [0,1500]*500, [0,1500]*900, 10000 iters
+branchy      	0.004775	1172.750366
+csum:2999826
+
+all left < right: [0,1500]*500, [1500,3500]*500, 10000 iters
+branchy      	0.000307	13012.362305
+csum:0
+
+all left > right: [1500,3500]*500, [0,1500]*500, 10000 iters
+branchy      	0.000534	7490.636719
+csum:0
+
+dense: [0,1500]*1400, [0,1500]*1200, 10000 iters
+branchy      	0.004130	2517.916016
+csum:11199990
+
+sparse: [0,1500]*90, [0,1500]*50, 10000 iters
+branchy      	0.000461	1084.598633
+csum:29872
+
+big: [0,15000]*9000, [0,15000]*9000, 1000 iters
+branchy      	0.063133	1140.449463
+csum:5399810
+
+huge: [0,150000]*90000, [0,150000]*90000, 100 iters
+branchy      	0.645360	1115.656372
+csum:5398620
+
+yomama: [0,1500000]*900000, [0,1500000]*900000, 10 iters
+branchy      	6.341100	1135.449707
+csum:5400013
+
+yomama2: [0,9500000]*1200000, [0,9500000]*1500000, 10 iters
+branchy      	10.259200	1052.713623
+csum:1894513
+```
+</details>
+
+<details>
+  <summary>i7 9750h branchless</summary>
+
+```
+algorithm 	avg time (ms)	avg thrpt (MB/s)
+same range, more left: [0,1500]*900, [0,1500]*500, 10000 iters
+branchless   	0.002743	2041.709229
+csum:2998851
+
+same range, fewer left: [0,1500]*500, [0,1500]*900, 10000 iters
+branchless   	0.002645	2117.362305
+csum:2999985
+
+all left < right: [0,1500]*500, [1500,3500]*500, 10000 iters
+branchless   	0.001328	3011.141357
+csum:0
+
+all left > right: [1500,3500]*500, [0,1500]*500, 10000 iters
+branchless   	0.001277	3133.322998
+csum:0
+
+dense: [0,1500]*1400, [0,1500]*1200, 10000 iters
+branchless   	0.003830	2715.121094
+csum:11200760
+
+sparse: [0,1500]*90, [0,1500]*50, 10000 iters
+branchless   	0.000319	1567.889526
+csum:30150
+
+big: [0,15000]*9000, [0,15000]*9000, 1000 iters
+branchless   	0.031691	2271.938477
+csum:5399331
+
+huge: [0,150000]*90000, [0,150000]*90000, 100 iters
+branchless   	0.309980	2322.730469
+csum:5400829
+
+yomama: [0,1500000]*900000, [0,1500000]*900000, 10 iters
+branchless   	3.093100	2327.761719
+csum:5399948
+
+yomama2: [0,9500000]*1200000, [0,9500000]*1500000, 10 iters
+branchless   	6.043100	1787.162231
+csum:1892846
+```
+</details>
+
+<details>
+  <summary>i7 9750h b-less unroll</summary>
+
+```
+algorithm 	avg time (ms)	avg thrpt (MB/s)
+same range, more left: [0,1500]*900, [0,1500]*500, 10000 iters
+b-less unroll	0.002556	2191.266357
+csum:2999157
+
+same range, fewer left: [0,1500]*500, [0,1500]*900, 10000 iters
+b-less unroll	0.002534	2209.683105
+csum:2999542
+
+all left < right: [0,1500]*500, [1500,3500]*500, 10000 iters
+b-less unroll	0.001201	3329.726074
+csum:0
+
+all left > right: [1500,3500]*500, [0,1500]*500, 10000 iters
+b-less unroll	0.001190	3362.192383
+csum:0
+
+dense: [0,1500]*1400, [0,1500]*1200, 10000 iters
+b-less unroll	0.003625	2869.044678
+csum:11200399
+
+sparse: [0,1500]*90, [0,1500]*50, 10000 iters
+b-less unroll	0.000329	1522.069946
+csum:30147
+
+big: [0,15000]*9000, [0,15000]*9000, 1000 iters
+b-less unroll	0.030548	2356.946289
+csum:5399740
+
+huge: [0,150000]*90000, [0,150000]*90000, 100 iters
+b-less unroll	0.300350	2397.203125
+csum:5400151
+
+yomama: [0,1500000]*900000, [0,1500000]*900000, 10 iters
+b-less unroll	3.046900	2363.057617
+csum:5400936
+
+yomama2: [0,9500000]*1200000, [0,9500000]*1500000, 10 iters
+b-less unroll	5.934700	1819.805542
+csum:1893744
+```
+</details>
+
+<details>
+  <summary>i7 9750h 'dual-wield'</summary>
+
+```
+algorithm 	avg time (ms)	avg thrpt (MB/s)
+same range, more left: [0,1500]*900, [0,1500]*500, 10000 iters
+dual-wield   	0.001603	3494.321777
+csum:3000976
+
+same range, fewer left: [0,1500]*500, [0,1500]*900, 10000 iters
+dual-wield   	0.001642	3410.890381
+csum:2999579
+
+all left < right: [0,1500]*500, [1500,3500]*500, 10000 iters
+dual-wield   	0.000756	5294.506836
+csum:0
+
+all left > right: [1500,3500]*500, [0,1500]*500, 10000 iters
+dual-wield   	0.000753	5314.908203
+csum:0
+
+dense: [0,1500]*1400, [0,1500]*1200, 10000 iters
+dual-wield   	0.002153	4831.142578
+csum:11200268
+
+sparse: [0,1500]*90, [0,1500]*50, 10000 iters
+dual-wield   	0.000187	2666.666748
+csum:30143
+
+big: [0,15000]*9000, [0,15000]*9000, 1000 iters
+dual-wield   	0.017649	4079.551025
+csum:5399545
+
+huge: [0,150000]*90000, [0,150000]*90000, 100 iters
+dual-wield   	0.171780	4191.407227
+csum:5399386
+
+yomama: [0,1500000]*900000, [0,1500000]*900000, 10 iters
+dual-wield   	1.745500	4124.892578
+csum:5399760
+
+yomama2: [0,9500000]*1200000, [0,9500000]*1500000, 10 iters
+dual-wield   	3.285000	3287.671143
+csum:1896058
+```
+</details>
+
+<details>
+  <summary>i7 9750h 'tri-wield'</summary>
+
+```
+algorithm 	avg time (ms)	avg thrpt (MB/s)
+same range, more left: [0,1500]*900, [0,1500]*500, 10000 iters
+tri-wield    	0.001556	3599.203125
+csum:2999512
+
+same range, fewer left: [0,1500]*500, [0,1500]*900, 10000 iters
+tri-wield    	0.001527	3667.561768
+csum:3001679
+
+all left < right: [0,1500]*500, [1500,3500]*500, 10000 iters
+tri-wield    	0.000668	5987.127930
+csum:0
+
+all left > right: [1500,3500]*500, [0,1500]*500, 10000 iters
+tri-wield    	0.000663	6035.002930
+csum:0
+
+dense: [0,1500]*1400, [0,1500]*1200, 10000 iters
+tri-wield    	0.002094	4967.757324
+csum:11201638
+
+sparse: [0,1500]*90, [0,1500]*50, 10000 iters
+tri-wield    	0.000195	2562.788330
+csum:30306
+
+big: [0,15000]*9000, [0,15000]*9000, 1000 iters
+tri-wield    	0.018472	3897.791504
+csum:5399701
+
+huge: [0,150000]*90000, [0,150000]*90000, 100 iters
+tri-wield    	0.180640	3985.828125
+csum:5401225
+
+yomama: [0,1500000]*900000, [0,1500000]*900000, 10 iters
+tri-wield    	1.887300	3814.973633
+csum:5398438
+
+yomama2: [0,9500000]*1200000, [0,9500000]*1500000, 10 iters
+tri-wield    	3.718800	2904.162598
+csum:1893854
+```
+</details>

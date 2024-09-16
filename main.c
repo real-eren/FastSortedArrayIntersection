@@ -487,5 +487,4 @@ int main(int argc, char *argv[]) {
         free(right_arr);
         free(right_pool);
     }
-    fprintf(stdout, "\n");
 }

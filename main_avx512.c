@@ -149,7 +149,8 @@ __attribute__((noinline)) size_t intersect_branchless_tri_wield(u32 *left1, size
     size_t l3_write_i = 0;
     size_t r3_i = 0;
     // these end up being predictable, no need to bother with amortizing the checks via unrolls
-    while (l1_i < left1_len && r1_i < right1_len && l2_i < left2_len && r2_i < right2_len) {
+    while (l1_i < left1_len && r1_i < right1_len && l2_i < left2_len && r2_i < right2_len && l3_i < left2_len &&
+           r3_i < right2_len) {
         u32 l1 = left1[l1_i];
         u32 r1 = right1[r1_i];
         u32 l1_le = l1 <= r1;
@@ -238,6 +239,7 @@ __attribute__((noinline)) size_t intersect_conflict(u32 *left, size_t left_len, 
     while (l_i + 7 < left_len && r_i + 7 < right_len) {
         __m256i data_l = _mm256_loadu_epi32(left + l_i);
         __m256i data_r = _mm256_loadu_epi32(right + r_i);
+        __m256i old_l_write = _mm256_loadu_epi32(left + l_write_i);
         __m256i max_l = _mm256_set1_epi32(left[7 + l_i]);
         __m256i max_r = _mm256_set1_epi32(right[7 + r_i]);
         __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
@@ -251,7 +253,7 @@ __attribute__((noinline)) size_t intersect_conflict(u32 *left, size_t left_len, 
 
         __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
         __mmask8 intersect_mask = m >> 8;
-        _mm256_storeu_epi32(left + l_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+        _mm256_storeu_epi32(left + l_write_i, _mm256_mask_compress_epi32(old_l_write, intersect_mask, data_r));
         l_i += __builtin_popcount(skip_mask_l);
         r_i += __builtin_popcount(skip_mask_r);
         l_write_i += __builtin_popcount(intersect_mask);
@@ -287,6 +289,7 @@ __attribute__((noinline)) size_t intersect_conflict2(u32 *left1, size_t left1_le
         {
             __m256i data_l = _mm256_loadu_epi32(left1 + l1_i);
             __m256i data_r = _mm256_loadu_epi32(right1 + r1_i);
+            __m256i old_l_write = _mm256_loadu_epi32(left1 + l1_write_i);
             __m256i max_l = _mm256_set1_epi32(left1[7 + l1_i]);
             __m256i max_r = _mm256_set1_epi32(right1[7 + r1_i]);
             __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
@@ -295,7 +298,7 @@ __attribute__((noinline)) size_t intersect_conflict2(u32 *left1, size_t left1_le
             data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
             __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
             __mmask8 intersect_mask = m >> 8;
-            _mm256_storeu_epi32(left1 + l1_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+            _mm256_storeu_epi32(left1 + l1_write_i, _mm256_mask_compress_epi32(old_l_write, intersect_mask, data_r));
             l1_i += __builtin_popcount(skip_mask_l);
             r1_i += __builtin_popcount(skip_mask_r);
             l1_write_i += __builtin_popcount(intersect_mask);
@@ -303,6 +306,7 @@ __attribute__((noinline)) size_t intersect_conflict2(u32 *left1, size_t left1_le
         {
             __m256i data_l = _mm256_loadu_epi32(left2 + l2_i);
             __m256i data_r = _mm256_loadu_epi32(right2 + r2_i);
+            __m256i old_l_write = _mm256_loadu_epi32(left2 + l2_write_i);
             __m256i max_l = _mm256_set1_epi32(left2[7 + l2_i]);
             __m256i max_r = _mm256_set1_epi32(right2[7 + r2_i]);
             __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
@@ -311,7 +315,7 @@ __attribute__((noinline)) size_t intersect_conflict2(u32 *left1, size_t left1_le
             data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
             __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
             __mmask8 intersect_mask = m >> 8;
-            _mm256_storeu_epi32(left2 + l2_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+            _mm256_storeu_epi32(left2 + l2_write_i, _mm256_mask_compress_epi32(old_l_write, intersect_mask, data_r));
             l2_i += __builtin_popcount(skip_mask_l);
             r2_i += __builtin_popcount(skip_mask_r);
             l2_write_i += __builtin_popcount(intersect_mask);
@@ -364,6 +368,7 @@ __attribute__((noinline)) size_t intersect_conflict3(u32 *left1, size_t left1_le
         {
             __m256i data_l = _mm256_loadu_epi32(left1 + l1_i);
             __m256i data_r = _mm256_loadu_epi32(right1 + r1_i);
+            __m256i old_l_write = _mm256_loadu_epi32(left1 + l1_write_i);
             __m256i max_l = _mm256_set1_epi32(left1[7 + l1_i]);
             __m256i max_r = _mm256_set1_epi32(right1[7 + r1_i]);
             __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
@@ -372,7 +377,7 @@ __attribute__((noinline)) size_t intersect_conflict3(u32 *left1, size_t left1_le
             data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
             __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
             __mmask8 intersect_mask = m >> 8;
-            _mm256_storeu_epi32(left1 + l1_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+            _mm256_storeu_epi32(left1 + l1_write_i, _mm256_mask_compress_epi32(old_l_write, intersect_mask, data_r));
             l1_i += __builtin_popcount(skip_mask_l);
             r1_i += __builtin_popcount(skip_mask_r);
             l1_write_i += __builtin_popcount(intersect_mask);
@@ -380,6 +385,7 @@ __attribute__((noinline)) size_t intersect_conflict3(u32 *left1, size_t left1_le
         {
             __m256i data_l = _mm256_loadu_epi32(left2 + l2_i);
             __m256i data_r = _mm256_loadu_epi32(right2 + r2_i);
+            __m256i old_l_write = _mm256_loadu_epi32(left2 + l2_write_i);
             __m256i max_l = _mm256_set1_epi32(left2[7 + l2_i]);
             __m256i max_r = _mm256_set1_epi32(right2[7 + r2_i]);
             __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
@@ -388,7 +394,7 @@ __attribute__((noinline)) size_t intersect_conflict3(u32 *left1, size_t left1_le
             data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
             __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
             __mmask8 intersect_mask = m >> 8;
-            _mm256_storeu_epi32(left2 + l2_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+            _mm256_storeu_epi32(left2 + l2_write_i, _mm256_mask_compress_epi32(old_l_write, intersect_mask, data_r));
             l2_i += __builtin_popcount(skip_mask_l);
             r2_i += __builtin_popcount(skip_mask_r);
             l2_write_i += __builtin_popcount(intersect_mask);
@@ -396,6 +402,7 @@ __attribute__((noinline)) size_t intersect_conflict3(u32 *left1, size_t left1_le
         {
             __m256i data_l = _mm256_loadu_epi32(left3 + l3_i);
             __m256i data_r = _mm256_loadu_epi32(right3 + r3_i);
+            __m256i old_l_write = _mm256_loadu_epi32(left3 + l3_write_i);
             __m256i max_l = _mm256_set1_epi32(left3[7 + l3_i]);
             __m256i max_r = _mm256_set1_epi32(right3[7 + r3_i]);
             __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
@@ -404,7 +411,7 @@ __attribute__((noinline)) size_t intersect_conflict3(u32 *left1, size_t left1_le
             data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
             __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
             __mmask8 intersect_mask = m >> 8;
-            _mm256_storeu_epi32(left3 + l3_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+            _mm256_storeu_epi32(left3 + l3_write_i, _mm256_mask_compress_epi32(old_l_write, intersect_mask, data_r));
             l3_i += __builtin_popcount(skip_mask_l);
             r3_i += __builtin_popcount(skip_mask_r);
             l3_write_i += __builtin_popcount(intersect_mask);
@@ -629,7 +636,6 @@ int main(int argc, char *argv[]) {
 
         // If we used rand() % range + min, it'd be harder to know that the vals are unique.
         // shuffle in here, copy into arr
-        // names r hard
         u32 *left_pool = malloc(left_range * sizeof(u32));
         u32 *right_pool = malloc(right_range * sizeof(u32));
         for (size_t i = 0; i < left_range; i++) {
@@ -652,7 +658,7 @@ int main(int argc, char *argv[]) {
 
         // finally, bench
         display(&b); // creating the input is much slower
-                     // so we print this here so that the visual delay matches the actual execution time
+        // so we print this here so that the visual delay matches the actual execution time
 
         // MB
         size_t input_size = b.iters * (b.left_count + b.right_count) * sizeof(u32) * 0.000001;
@@ -762,4 +768,5 @@ int main(int argc, char *argv[]) {
         free(right_arr);
         free(right_pool);
     }
+    fprintf(stdout, "\n");
 }

@@ -148,7 +148,8 @@ __attribute__((noinline)) size_t intersect_branchless_tri_wield(u32 *left1, size
     size_t l3_write_i = 0;
     size_t r3_i = 0;
     // these end up being predictable, no need to bother with amortizing the checks via unrolls
-    while (l1_i < left1_len && r1_i < right1_len && l2_i < left2_len && r2_i < right2_len) {
+    while (l1_i < left1_len && r1_i < right1_len && l2_i < left2_len && r2_i < right2_len && l3_i < left3_len &&
+           r3_i < right3_len) {
         u32 l1 = left1[l1_i];
         u32 r1 = right1[r1_i];
         u32 l1_le = l1 <= r1;
@@ -264,8 +265,7 @@ enum Mode {
     TriWield = 4,
 };
 
-char *algo_names[] = {"branchy      ", "branchless   ", "b-less unroll",
-                      "dual-wield   ", "tri-wield    "};
+char *algo_names[] = {"branchy      ", "branchless   ", "b-less unroll", "dual-wield   ", "tri-wield    "};
 int main(int argc, char *argv[]) {
     size_t num_algos = sizeof(algo_names) / sizeof(char *);
     if (argc != 2) {
@@ -392,7 +392,6 @@ int main(int argc, char *argv[]) {
 
         // If we used rand() % range + min, it'd be harder to know that the vals are unique.
         // shuffle in here, copy into arr
-        // names r hard
         u32 *left_pool = malloc(left_range * sizeof(u32));
         u32 *right_pool = malloc(right_range * sizeof(u32));
         for (size_t i = 0; i < left_range; i++) {
@@ -415,7 +414,7 @@ int main(int argc, char *argv[]) {
 
         // finally, bench
         display(&b); // creating the input is much slower
-                     // so we print this here so that the visual delay matches the actual execution time
+        // so we print this here so that the visual delay matches the actual execution time
 
         // MB
         size_t input_size = b.iters * (b.left_count + b.right_count) * sizeof(u32) * 0.000001;
@@ -488,4 +487,5 @@ int main(int argc, char *argv[]) {
         free(right_arr);
         free(right_pool);
     }
+    fprintf(stdout, "\n");
 }

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <immintrin.h>
 #include <inttypes.h>
 
 #define u32 uint32_t
@@ -214,6 +215,237 @@ __attribute__((noinline)) size_t intersect_branchless_tri_wield(u32 *left1, size
     return l1_write_i + l2_write_i + l3_write_i;
 }
 
+__attribute__((noinline)) size_t intersect_conflict(u32 *left, size_t left_len, const u32 *right, size_t right_len) {
+    // load 8 dwords from both vecs as __m256i, data_l and data_r
+    // load 8th dword from both as i32
+    // broadcast i32, get 2 __m256i, max_l and max_r
+    // compare max_l>=data_r and max_r>=data_l and get 2 masks
+    //   popcount of each mask tells us how much to advance each array
+    // concat data_l and data_r into data_lr
+    // vpconflictd data_lr
+    // subset of bits tells us the matches
+    // test those to get mask, intersect_mask
+    // vpcompress w/ intersect_mask
+    // store above
+    // bump l_write_i by popcount(intersect_mask)
+    u32 stuff[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0XFF, 0XFF, 0XFF, 0xFF, 0XFF, 0XFF, 0XFF,
+    };
+    __m512i intersect_bitmask = _mm512_loadu_epi8(stuff);
+    size_t l_i = 0;
+    size_t r_i = 0;
+    size_t l_write_i = 0;
+    while (l_i + 7 < left_len && r_i + 7 < right_len) {
+        __m256i data_l = _mm256_loadu_epi32(left + l_i);
+        __m256i data_r = _mm256_loadu_epi32(right + r_i);
+        __m256i max_l = _mm256_set1_epi32(left[7 + l_i]);
+        __m256i max_r = _mm256_set1_epi32(right[7 + r_i]);
+        __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
+        __mmask8 skip_mask_r = _mm256_cmple_epi32_mask(data_r, max_l);
+        __m512i data_lr = _mm512_castsi256_si512(data_l);
+        data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
+        // first 8 dwords are from left
+        // last 8 from right
+        // we want to know which lanes in right matched a lane in left
+        // this will be the bottom 8 bits of the upper 8 lanes.
+
+        __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
+        __mmask8 intersect_mask = m >> 8;
+        _mm256_storeu_epi32(left + l_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+        l_i += __builtin_popcount(skip_mask_l);
+        r_i += __builtin_popcount(skip_mask_r);
+        l_write_i += __builtin_popcount(intersect_mask);
+    }
+    while (l_i < left_len && r_i < right_len) {
+        u32 l = left[l_i];
+        u32 r = right[r_i];
+        u32 l_le = l <= r;
+        u32 eq = l == r;
+        u32 l_ge = l >= r;
+        l_i += l_le;
+        r_i += l_ge;
+        left[l_write_i] = l;
+        l_write_i += eq;
+    }
+    return l_write_i;
+}
+
+__attribute__((noinline)) size_t intersect_conflict2(u32 *left1, size_t left1_len, const u32 *right1, size_t right1_len,
+                                                     u32 *left2, size_t left2_len, const u32 *right2,
+                                                     size_t right2_len) {
+    u32 stuff[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0XFF, 0XFF, 0XFF, 0xFF, 0XFF, 0XFF, 0XFF,
+    };
+    __m512i intersect_bitmask = _mm512_loadu_epi8(stuff);
+    size_t l1_i = 0;
+    size_t r1_i = 0;
+    size_t l1_write_i = 0;
+    size_t l2_i = 0;
+    size_t r2_i = 0;
+    size_t l2_write_i = 0;
+    while (l1_i + 7 < left1_len && r1_i + 7 < right1_len && l2_i + 7 < left2_len && r2_i + 7 < right2_len) {
+        {
+            __m256i data_l = _mm256_loadu_epi32(left1 + l1_i);
+            __m256i data_r = _mm256_loadu_epi32(right1 + r1_i);
+            __m256i max_l = _mm256_set1_epi32(left1[7 + l1_i]);
+            __m256i max_r = _mm256_set1_epi32(right1[7 + r1_i]);
+            __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
+            __mmask8 skip_mask_r = _mm256_cmple_epi32_mask(data_r, max_l);
+            __m512i data_lr = _mm512_castsi256_si512(data_l);
+            data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
+            __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
+            __mmask8 intersect_mask = m >> 8;
+            _mm256_storeu_epi32(left1 + l1_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+            l1_i += __builtin_popcount(skip_mask_l);
+            r1_i += __builtin_popcount(skip_mask_r);
+            l1_write_i += __builtin_popcount(intersect_mask);
+        }
+        {
+            __m256i data_l = _mm256_loadu_epi32(left2 + l2_i);
+            __m256i data_r = _mm256_loadu_epi32(right2 + r2_i);
+            __m256i max_l = _mm256_set1_epi32(left2[7 + l2_i]);
+            __m256i max_r = _mm256_set1_epi32(right2[7 + r2_i]);
+            __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
+            __mmask8 skip_mask_r = _mm256_cmple_epi32_mask(data_r, max_l);
+            __m512i data_lr = _mm512_castsi256_si512(data_l);
+            data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
+            __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
+            __mmask8 intersect_mask = m >> 8;
+            _mm256_storeu_epi32(left2 + l2_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+            l2_i += __builtin_popcount(skip_mask_l);
+            r2_i += __builtin_popcount(skip_mask_r);
+            l2_write_i += __builtin_popcount(intersect_mask);
+        }
+    }
+    while (l1_i < left1_len && r1_i < right1_len) {
+        u32 l = left1[l1_i];
+        u32 r = right1[r1_i];
+        u32 l_le = l <= r;
+        u32 eq = l == r;
+        u32 l_ge = l >= r;
+        l1_i += l_le;
+        r1_i += l_ge;
+        left1[l1_write_i] = l;
+        l1_write_i += eq;
+    }
+    while (l2_i < left2_len && r2_i < right2_len) {
+        u32 l = left2[l2_i];
+        u32 r = right2[r2_i];
+        u32 l_le = l <= r;
+        u32 eq = l == r;
+        u32 l_ge = l >= r;
+        l2_i += l_le;
+        r2_i += l_ge;
+        left2[l2_write_i] = l;
+        l2_write_i += eq;
+    }
+    return l1_write_i + l2_write_i;
+}
+
+__attribute__((noinline)) size_t intersect_conflict3(u32 *left1, size_t left1_len, const u32 *right1, size_t right1_len,
+                                                     u32 *left2, size_t left2_len, const u32 *right2, size_t right2_len,
+                                                     u32 *left3, size_t left3_len, const u32 *right3,
+                                                     size_t right3_len) {
+    u32 stuff[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0XFF, 0XFF, 0XFF, 0xFF, 0XFF, 0XFF, 0XFF,
+    };
+    __m512i intersect_bitmask = _mm512_loadu_epi8(stuff);
+    size_t l1_i = 0;
+    size_t r1_i = 0;
+    size_t l1_write_i = 0;
+    size_t l2_i = 0;
+    size_t r2_i = 0;
+    size_t l2_write_i = 0;
+    size_t l3_i = 0;
+    size_t r3_i = 0;
+    size_t l3_write_i = 0;
+    while (l1_i + 7 < left1_len && r1_i + 7 < right1_len && l2_i + 7 < left2_len && r2_i + 7 < right2_len &&
+           l3_i + 7 < left3_len && r3_i + 7 < right3_len) {
+        {
+            __m256i data_l = _mm256_loadu_epi32(left1 + l1_i);
+            __m256i data_r = _mm256_loadu_epi32(right1 + r1_i);
+            __m256i max_l = _mm256_set1_epi32(left1[7 + l1_i]);
+            __m256i max_r = _mm256_set1_epi32(right1[7 + r1_i]);
+            __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
+            __mmask8 skip_mask_r = _mm256_cmple_epi32_mask(data_r, max_l);
+            __m512i data_lr = _mm512_castsi256_si512(data_l);
+            data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
+            __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
+            __mmask8 intersect_mask = m >> 8;
+            _mm256_storeu_epi32(left1 + l1_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+            l1_i += __builtin_popcount(skip_mask_l);
+            r1_i += __builtin_popcount(skip_mask_r);
+            l1_write_i += __builtin_popcount(intersect_mask);
+        }
+        {
+            __m256i data_l = _mm256_loadu_epi32(left2 + l2_i);
+            __m256i data_r = _mm256_loadu_epi32(right2 + r2_i);
+            __m256i max_l = _mm256_set1_epi32(left2[7 + l2_i]);
+            __m256i max_r = _mm256_set1_epi32(right2[7 + r2_i]);
+            __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
+            __mmask8 skip_mask_r = _mm256_cmple_epi32_mask(data_r, max_l);
+            __m512i data_lr = _mm512_castsi256_si512(data_l);
+            data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
+            __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
+            __mmask8 intersect_mask = m >> 8;
+            _mm256_storeu_epi32(left2 + l2_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+            l2_i += __builtin_popcount(skip_mask_l);
+            r2_i += __builtin_popcount(skip_mask_r);
+            l2_write_i += __builtin_popcount(intersect_mask);
+        }
+        {
+            __m256i data_l = _mm256_loadu_epi32(left3 + l3_i);
+            __m256i data_r = _mm256_loadu_epi32(right3 + r3_i);
+            __m256i max_l = _mm256_set1_epi32(left3[7 + l3_i]);
+            __m256i max_r = _mm256_set1_epi32(right3[7 + r3_i]);
+            __mmask8 skip_mask_l = _mm256_cmple_epi32_mask(data_l, max_r);
+            __mmask8 skip_mask_r = _mm256_cmple_epi32_mask(data_r, max_l);
+            __m512i data_lr = _mm512_castsi256_si512(data_l);
+            data_lr = _mm512_inserti64x4(data_lr, data_r, 1);
+            __mmask16 m = _mm512_test_epi32_mask(intersect_bitmask, _mm512_conflict_epi32(data_lr));
+            __mmask8 intersect_mask = m >> 8;
+            _mm256_storeu_epi32(left3 + l3_write_i, _mm256_maskz_compress_epi32(intersect_mask, data_r));
+            l3_i += __builtin_popcount(skip_mask_l);
+            r3_i += __builtin_popcount(skip_mask_r);
+            l3_write_i += __builtin_popcount(intersect_mask);
+        }
+    }
+    while (l1_i < left1_len && r1_i < right1_len) {
+        u32 l = left1[l1_i];
+        u32 r = right1[r1_i];
+        u32 l_le = l <= r;
+        u32 eq = l == r;
+        u32 l_ge = l >= r;
+        l1_i += l_le;
+        r1_i += l_ge;
+        left1[l1_write_i] = l;
+        l1_write_i += eq;
+    }
+    while (l2_i < left2_len && r2_i < right2_len) {
+        u32 l = left2[l2_i];
+        u32 r = right2[r2_i];
+        u32 l_le = l <= r;
+        u32 eq = l == r;
+        u32 l_ge = l >= r;
+        l2_i += l_le;
+        r2_i += l_ge;
+        left2[l2_write_i] = l;
+        l2_write_i += eq;
+    }
+    while (l3_i < left3_len && r3_i < right3_len) {
+        u32 l = left3[l3_i];
+        u32 r = right3[r3_i];
+        u32 l_le = l <= r;
+        u32 eq = l == r;
+        u32 l_ge = l >= r;
+        l3_i += l_le;
+        r3_i += l_ge;
+        left3[l3_write_i] = l;
+        l3_write_i += eq;
+    }
+    return l1_write_i + l2_write_i + l3_write_i;
+}
+
 void shuffle(u32 *arr, size_t n) {
     if (n <= 1)
         return;
@@ -262,10 +494,15 @@ enum Mode {
     BranchlessUnroll = 2,
     DualWield = 3,
     TriWield = 4,
+    Conflict = 5,
+    Conflict2 = 6,
+    Conflict3 = 7,
 };
 
-char *algo_names[] = {"branchy      ", "branchless   ", "b-less unroll",
-                      "dual-wield   ", "tri-wield    ", "conflict     "};
+char *algo_names[] = {
+    "branchy      ", "branchless   ", "b-less unroll", "dual-wield   ",
+    "tri-wield    ", "conflict     ", "conflict2    ", "conflict3    ",
+};
 int main(int argc, char *argv[]) {
     size_t num_algos = sizeof(algo_names) / sizeof(char *);
     if (argc != 2) {
@@ -469,6 +706,43 @@ int main(int argc, char *argv[]) {
             for (; i < b.iters; i++) {
                 checksum += intersect_branchless(left_arr + i * b.left_count, b.left_count,
                                                  right_arr + i * b.right_count, b.right_count);
+            }
+            break;
+        }
+        case Conflict:
+            for (size_t i = 0; i < b.iters; i++) {
+                checksum += intersect_conflict(left_arr + i * b.left_count, b.left_count, right_arr + i * b.right_count,
+                                               b.right_count);
+            }
+
+            break;
+
+        case Conflict2: {
+            size_t i = 0;
+            for (; i + 1 < b.iters; i += 2) {
+                checksum +=
+                    intersect_conflict2(left_arr + i * b.left_count, b.left_count, right_arr + i * b.right_count,
+                                        b.right_count, left_arr + (i + 1) * b.left_count, b.left_count,
+                                        right_arr + (i + 1) * b.right_count, b.right_count);
+            }
+            for (; i < b.iters; i++) {
+                checksum += intersect_conflict(left_arr + i * b.left_count, b.left_count, right_arr + i * b.right_count,
+                                               b.right_count);
+            }
+            break;
+        }
+        case Conflict3: {
+            size_t i = 0;
+            for (; i + 2 < b.iters; i += 3) {
+                checksum += intersect_conflict3(
+                    left_arr + i * b.left_count, b.left_count, right_arr + i * b.right_count, b.right_count,
+                    left_arr + (i + 1) * b.left_count, b.left_count, right_arr + (i + 1) * b.right_count, b.right_count,
+                    left_arr + (i + 2) * b.left_count, b.left_count, right_arr + (i + 2) * b.right_count,
+                    b.right_count);
+            }
+            for (; i < b.iters; i++) {
+                checksum += intersect_conflict(left_arr + i * b.left_count, b.left_count, right_arr + i * b.right_count,
+                                               b.right_count);
             }
             break;
         }
